@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cafeinablend POS</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2c1e16">
+    <meta name="description" content="Punto de venta y administración para Cafeinablend">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/924/924514.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box glass-effect">
+            <div class="login-logo">
+                <i class="fa-solid fa-mug-hot"></i>
+                <h2>Cafeinablend</h2>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-pin">Ingrese su PIN de acceso</label>
+                    <input type="password" id="login-pin" placeholder="****" required autocomplete="off" inputmode="numeric" maxlength="4">
+                </div>
+                <div id="login-error" class="login-error-msg">PIN incorrecto</div>
+                <button type="submit" class="btn btn-primary login-submit-btn">Ingresar</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-mug-hot"></i>
+                <span>Cafeinablend</span>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-target="pos-view">
+                    <i class="fa-solid fa-cash-register"></i>
+                    <span>Punto de Venta</span>
+                </li>
+                <li data-target="admin-view">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                    <span>Administración</span>
+                </li>
+                <li id="exit-app-btn" style="color: #ff4757; margin-top: auto;">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Salir</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <h1 class="visually-hidden">Cafeinablend Punto de Venta y Administración</h1>
+            
+            <!-- POS View -->
+            <section id="pos-view" class="view active">
+                <header class="view-header">
+                    <h2>Mesas</h2>
+                    <div class="header-actions">
+                        <span id="current-time">00:00</span>
+                    </div>
+                </header>
+
+                <div class="tables-grid" id="tables-container">
+                    <!-- Tables injected via JS -->
+                </div>
+            </section>
+
+            <!-- Order/Cart View (Appears when table selected) -->
+            <section id="order-view" class="view hidden sliding-panel">
+                <header class="view-header">
+                    <button class="back-btn" id="back-to-tables">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <h2 id="active-table-name">Mesa 1</h2>
+                    <div class="table-status-badge">Ocupada</div>
+                </header>
+                
+                <div class="order-layout">
+                    <!-- Menu Categories & Products -->
+                    <div class="menu-section">
+                        <div class="categories-tabs" id="pos-categories">
+                            <!-- Tabs injected via JS -->
+                        </div>
+                        <div class="products-grid" id="pos-products">
+                            <!-- Products injected via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Cart Sidebar -->
+                    <div class="cart-section">
+                        <h2>Orden Actual</h2>
+                        <div class="cart-items" id="cart-items">
+                            <!-- Cart items injected via JS -->
+                        </div>
+                        <div class="cart-summary">
+                            <div class="summary-row">
+                                <span>Subtotal</span>
+                                <span id="cart-subtotal">$0.00</span>
+                            </div>
+                            <div class="summary-row total">
+                                <span>Total</span>
+                                <span id="cart-total">$0.00</span>
+                            </div>
+                            <div class="cart-actions">
+                                <button class="btn btn-outline" id="clear-table-btn">Liberar Mesa</button>
+                                <button class="btn btn-primary" id="pay-btn">Cobrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin View -->
+            <section id="admin-view" class="view hidden">
+                <header class="view-header">
+                    <h2>Gestión de Productos</h2>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <input type="file" id="import-system-file" accept=".json" style="display: none;">
+                        <button class="btn btn-outline" id="import-json-btn" onclick="document.getElementById('import-system-file').click()">
+                            <i class="fa-solid fa-upload"></i> Importar Datos
+                        </button>
+                        <button class="btn btn-outline" id="export-json-btn">
+                            <i class="fa-solid fa-download"></i> Exportar Datos
+                        </button>
+                        <button class="btn btn-outline" id="report-csv-btn">
+                            <i class="fa-solid fa-file-csv"></i> Reporte CSV
+                        </button>
+                        <button class="btn btn-outline" id="view-report-btn">
+                            <i class="fa-solid fa-file-pdf"></i> Ver Inventario
+                        </button>
+                        <button class="btn btn-outline" id="view-sales-btn">
+                            <i class="fa-solid fa-chart-line"></i> Reporte Ventas
+                        </button>
+                        <button class="btn btn-primary" id="add-product-btn">
+                            <i class="fa-solid fa-plus"></i> Nuevo Producto
+                        </button>
+                    </div>
+                </header>
+
+                <div class="admin-layout">
+                    <div class="global-stock-panel glass-effect">
+                        <div class="global-stock-info">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                            <div>
+                                <h3>Stock Global de Café (Gramos)</h3>
+                                <div class="stock-edit-group">
+                                    <input type="number" id="global-coffee-input" min="0">
+                                    <button class="btn btn-primary" id="save-global-stock-btn">Actualizar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filters">
+                        <select id="admin-category-filter">
+                            <option value="all">Todas las categorías</option>
+                            <option value="cafes">Cafés</option>
+                            <option value="postres">Postres</option>
+                            <option value="jugos">Jugos</option>
+                            <option value="bebidas">Bebidas</option>
+                        </select>
+                    </div>
+
+                    <div class="admin-products-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Imagen</th>
+                                    <th>Nombre</th>
+                                    <th>Categoría</th>
+                                    <th>Precio</th>
+                                    <th>Stock</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-products-list">
+                                <!-- Products injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Report Modal -->
+    <div class="modal-overlay hidden" id="report-modal">
+        <div class="modal glass-effect" style="max-width: 800px; width: 95%;">
+            <header class="modal-header print-hidden">
+                <h2 id="report-title">Reporte de Inventario</h2>
+                <div style="display:flex; gap:1rem; align-items:center;">
+                    <button class="btn btn-primary" id="print-report-btn">
+                        <i class="fa-solid fa-print"></i> Imprimir / Guardar PDF
+                    </button>
+                    <button class="close-modal" id="close-report-btn"><i class="fa-solid fa-times"></i></button>
+                </div>
+            </header>
+            <div id="printable-report-area">
+                <div class="report-header screen-hidden">
+                    <h1 style="color: #000; margin-bottom:0.5rem;"><i class="fa-solid fa-mug-hot"></i> Cafeinablend</h1>
+                    <p style="color: #333; margin-bottom: 2rem;">Reporte de Inventario - <span id="report-date"></span></p>
+                </div>
+                <div class="report-table-wrapper">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Precio</th>
+                                <th>Stock / Gramos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body">
+                            <!-- Filled via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="report-summary" style="margin-top: 1.5rem; text-align: right; font-weight: bold; font-size: 1.2rem;">
+                    Stock Global de Café: <span id="report-global-stock"></span> g
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales Report Modal -->
+    <div class="modal-overlay hidden" id="sales-report-modal">
+        <div class="modal glass-effect" style="max-width: 900px; width: 95%;">
+            <header class="modal-header print-hidden">
+                <h2 id="sales-title">Reporte de Ventas</h2>
+                <div style="display:flex; gap:1rem; align-items:center;">
+                    <button class="btn btn-primary" id="print-sales-btn">
+                        <i class="fa-solid fa-print"></i> Imprimir / Guardar PDF
+                    </button>
+                    <button class="close-modal" id="close-sales-btn"><i class="fa-solid fa-times"></i></button>
+                </div>
+            </header>
+            <div id="printable-sales-area">
+                <div class="report-header screen-hidden">
+                    <h1 style="color: #000; margin-bottom:0.5rem;"><i class="fa-solid fa-mug-hot"></i> Cafeinablend</h1>
+                    <p style="color: #333; margin-bottom: 2rem;">Reporte de Ventas - <span id="sales-report-date"></span></p>
+                </div>
+                
+                <div class="sales-summary-cards print-cards" style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                    <div style="flex: 1; background: rgba(212, 163, 115, 0.1); border: 1px solid var(--primary-color); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                        <h3 class="print-text-black" style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 1rem; text-transform: uppercase;">Ventas de Hoy</h3>
+                        <div id="sales-today" class="print-text-black" style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">$0.00</div>
+                    </div>
+                    <div style="flex: 1; background: rgba(212, 163, 115, 0.1); border: 1px solid var(--primary-color); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                        <h3 class="print-text-black" style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 1rem; text-transform: uppercase;">Ventas del Mes</h3>
+                        <div id="sales-month" class="print-text-black" style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">$0.00</div>
+                    </div>
+                </div>
+
+                <div class="report-table-wrapper">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Mesa</th>
+                                <th>Artículos</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sales-table-body">
+                            <!-- Filled via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div class="modal-overlay hidden" id="product-modal">
+        <div class="modal glass-effect">
+            <header class="modal-header">
+                <h2 id="modal-title">Añadir Producto</h2>
+                <button class="close-modal" id="modal-close-icon-btn"><i class="fa-solid fa-times"></i></button>
+            </header>
+            <form id="product-form">
+                <input type="hidden" id="product-id">
+                <div class="form-group">
+                    <label for="product-name">Nombre del Producto</label>
+                    <input type="text" id="product-name" required placeholder="Ej. Cappuccino">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="product-category">Categoría</label>
+                        <select id="product-category" required>
+                            <option value="cafes">Cafés</option>
+                            <option value="postres">Postres</option>
+                            <option value="jugos">Jugos</option>
+                            <option value="bebidas">Bebidas</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="product-price">Precio ($)</label>
+                        <input type="number" id="product-price" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group" id="stock-group">
+                        <label for="product-stock">Stock (Unidades)</label>
+                        <input type="number" id="product-stock" required placeholder="0">
+                    </div>
+                    <div class="form-group hidden" id="grams-group">
+                        <label for="product-grams">Consumo (Gramos)</label>
+                        <input type="number" id="product-grams" placeholder="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="product-image-file">Imagen del Producto (Carpeta images)</label>
+                    <input type="file" id="product-image-file" accept="image/*">
+                    <input type="hidden" id="product-image">
+                    <div id="current-image-name" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);"></div>
+                    <small>Selecciona una imagen que ya hayas guardado en la carpeta "images".</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline close-modal" id="modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="modal-save-btn">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js"
+      }
+    }
+    </script>
+    <script type="module" src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log('Service Worker registrado', reg);
+                }).catch(err => {
+                    console.log('Fallo registro Service Worker', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

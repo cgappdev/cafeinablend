@@ -1,0 +1,22 @@
+{
+    "name": "Cafeinablend POS",
+    "short_name": "Cafeinablend",
+    "description": "Sistema de Punto de Venta y Administración para Cafeinablend",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#1a1512",
+    "theme_color": "#2c1e16",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/924/924514.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/924/924514.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

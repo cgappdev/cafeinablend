@@ -1,0 +1,16 @@
+{
+  "name": "cafeinablend",
+  "version": "1.0.0",
+  "description": "Punto de venta y administración para Cafeinablend",
+  "main": "app.js",
+  "scripts": {
+    "start": "serve .",
+    "dev": "serve ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}
