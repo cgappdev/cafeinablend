@@ -181,6 +181,34 @@ async function addSaleToFirebase(sale) {
 }
 
 // --- UI Logic ---
+function showCustomConfirm(message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) {
+        if (confirm(message)) onConfirm();
+        return;
+    }
+    document.getElementById('confirm-message').textContent = message;
+    
+    const okBtn = document.getElementById('confirm-ok-btn');
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+    
+    const newOkBtn = okBtn.cloneNode(true);
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+    
+    newOkBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        if (onConfirm) onConfirm();
+    });
+    
+    newCancelBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+    });
+    
+    modal.classList.remove('hidden');
+}
+
 function getFallbackImage(category) {
     const fallbacks = {
         'cafes': '<i class="fa-solid fa-mug-hot"></i>',
@@ -257,13 +285,13 @@ function handleLogin(e) {
 }
 
 function handleLogout() {
-    if (confirm('¿Estás seguro de cerrar la sesión?')) {
+    showCustomConfirm('¿Estás seguro de cerrar la sesión?', () => {
         sessionStorage.removeItem('cafeinablend_role');
         appState.currentUserRole = null;
         document.getElementById('login-overlay').classList.remove('hidden');
         document.getElementById('login-pin').focus();
         switchView('pos-view');
-    }
+    });
 }
 
 // --- Rendering ---
@@ -530,13 +558,13 @@ function updateCartQty(index, change) {
 
 function clearTable() {
     if (!appState.activeTable) return;
-    if (confirm('¿Estás seguro de liberar esta mesa? Se borrará el pedido actual.')) {
+    showCustomConfirm('¿Estás seguro de liberar esta mesa? Se borrará el pedido actual.', () => {
         const table = appState.tables.find(t => t.id === appState.activeTable);
         table.order = [];
         table.status = 'free';
         updateTableInFirebase(table);
         switchView('pos-view');
-    }
+    });
 }
 
 async function payTable() {
@@ -547,7 +575,7 @@ async function payTable() {
         return;
     }
     
-    if (confirm(`¿Cobrar la Mesa ${table.number}?`)) {
+    showCustomConfirm(`¿Cobrar la Mesa ${table.number}?`, () => {
         // Prepare Stock Updates
         let newCoffeeStock = appState.globalCoffeeStock;
         
@@ -591,7 +619,7 @@ async function payTable() {
         
         alert('¡Cobro realizado con éxito!');
         switchView('pos-view');
-    }
+    });
 }
 
 // --- Admin Actions ---

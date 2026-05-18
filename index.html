@@ -335,6 +335,20 @@
         </div>
     </div>
 
+    <!-- Custom Confirm Modal -->
+    <div class="modal-overlay hidden" id="confirm-modal" style="z-index: 9999;">
+        <div class="modal glass-effect" style="max-width: 400px; text-align: center;">
+            <div style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3 id="confirm-message" style="margin-bottom: 2rem; font-weight: 400;">¿Estás seguro?</h3>
+            <div class="modal-actions" style="justify-content: center; margin-top: 0;">
+                <button class="btn btn-outline" id="confirm-cancel-btn">Cancelar</button>
+                <button class="btn btn-primary" id="confirm-ok-btn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script type="importmap">
     {
