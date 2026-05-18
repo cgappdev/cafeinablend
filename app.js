@@ -812,6 +812,10 @@ function setupEventListeners() {
     });
 
     // Handle Exports/Imports (Keep local for now as it's a backup of current cloud state)
+    document.getElementById('export-json-btn').addEventListener('click', () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ products: appState.products, tables: appState.tables, config: { globalCoffeeStock: appState.globalCoffeeStock } }));
+        const link = document.createElement("a");
+        link.setAttribute("href", dataStr);
         link.download = `cafeinablend_cloud_backup_${new Date().toISOString().split('T')[0]}.json`;
         link.click();
     });
