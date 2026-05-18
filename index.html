@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,30 +8,34 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#2c1e16">
     <meta name="description" content="Punto de venta y administración para Cafeinablend">
-    
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap"
+        rel="stylesheet">
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/924/924514.png">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Login Overlay -->
     <div id="login-overlay" class="login-overlay">
         <div class="login-box glass-effect">
             <div class="login-logo">
                 <i class="fa-solid fa-mug-hot"></i>
-                <h2>Cafeinablend</h2>
+                <h2>CafeinaBlend</h2>
             </div>
             <form id="login-form">
                 <div class="form-group">
                     <label for="login-pin">Ingrese su PIN de acceso</label>
-                    <input type="password" id="login-pin" placeholder="****" required autocomplete="off" inputmode="numeric" maxlength="4">
+                    <input type="password" id="login-pin" placeholder="****" required autocomplete="off"
+                        inputmode="numeric" maxlength="4">
                 </div>
                 <div id="login-error" class="login-error-msg">PIN incorrecto</div>
                 <button type="submit" class="btn btn-primary login-submit-btn">Ingresar</button>
@@ -43,7 +48,7 @@
         <nav class="sidebar">
             <div class="logo">
                 <i class="fa-solid fa-mug-hot"></i>
-                <span>Cafeinablend</span>
+                <span>CafeinaBlend</span>
             </div>
             <ul class="nav-links">
                 <li class="active" data-target="pos-view">
@@ -64,15 +69,30 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <h1 class="visually-hidden">Cafeinablend Punto de Venta y Administración</h1>
-            
+
             <!-- POS View -->
             <section id="pos-view" class="view active">
                 <header class="view-header">
                     <h2>Mesas</h2>
-                    <div class="header-actions">
+                    <div class="header-actions" style="display: flex; align-items: center; gap: 1.5rem;">
+                        <div id="connection-status" class="connection-status online" title="Sincronizado con la nube">
+                            <span class="status-dot"></span>
+                            <span class="status-text">En línea</span>
+                        </div>
                         <span id="current-time">00:00</span>
                     </div>
                 </header>
+
+                <div id="low-coffee-alert" class="low-stock-banner hidden">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Alerta: Stock global de café bajo (<span id="low-coffee-grams">0</span>g). Reabastecer pronto.</span>
+                </div>
+
+                <div class="tables-filter-bar">
+                    <button class="table-filter-btn active" data-filter="all">Todas</button>
+                    <button class="table-filter-btn" data-filter="free">Libres</button>
+                    <button class="table-filter-btn" data-filter="occupied">Ocupadas</button>
+                </div>
 
                 <div class="tables-grid" id="tables-container">
                     <!-- Tables injected via JS -->
@@ -88,12 +108,16 @@
                     <h2 id="active-table-name">Mesa 1</h2>
                     <div class="table-status-badge">Ocupada</div>
                 </header>
-                
+
                 <div class="order-layout">
                     <!-- Menu Categories & Products -->
                     <div class="menu-section">
                         <div class="categories-tabs" id="pos-categories">
                             <!-- Tabs injected via JS -->
+                        </div>
+                        <div class="search-box-wrapper" style="margin-bottom: 1rem; position: relative;">
+                            <i class="fa-solid fa-magnifying-glass search-icon" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); opacity: 0.6;"></i>
+                            <input type="text" id="pos-product-search" placeholder="Buscar por nombre..." autocomplete="off" style="padding-left: 36px; border-radius: var(--radius-sm); background: rgba(0,0,0,0.2);">
                         </div>
                         <div class="products-grid" id="pos-products">
                             <!-- Products injected via JS -->
@@ -130,7 +154,8 @@
                     <h2>Gestión de Productos</h2>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <input type="file" id="import-system-file" accept=".json" style="display: none;">
-                        <button class="btn btn-outline" id="import-json-btn" onclick="document.getElementById('import-system-file').click()">
+                        <button class="btn btn-outline" id="import-json-btn"
+                            onclick="document.getElementById('import-system-file').click()">
                             <i class="fa-solid fa-upload"></i> Importar Datos
                         </button>
                         <button class="btn btn-outline" id="export-json-btn">
@@ -165,14 +190,18 @@
                         </div>
                     </div>
 
-                    <div class="filters">
-                        <select id="admin-category-filter">
+                    <div class="filters" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                        <select id="admin-category-filter" style="margin-bottom: 0;">
                             <option value="all">Todas las categorías</option>
                             <option value="cafes">Cafés</option>
                             <option value="postres">Postres</option>
                             <option value="jugos">Jugos</option>
                             <option value="bebidas">Bebidas</option>
                         </select>
+                        <div class="search-box-wrapper" style="margin-bottom: 0; flex: 1; max-width: 300px; position: relative;">
+                            <i class="fa-solid fa-magnifying-glass search-icon" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); opacity: 0.6;"></i>
+                            <input type="text" id="admin-product-search" placeholder="Buscar en inventario..." autocomplete="off" style="padding-left: 36px; border-radius: var(--radius-sm); background: rgba(0,0,0,0.2);">
+                        </div>
                     </div>
 
                     <div class="admin-products-table">
@@ -212,7 +241,8 @@
             <div id="printable-report-area">
                 <div class="report-header screen-hidden">
                     <h1 style="color: #000; margin-bottom:0.5rem;"><i class="fa-solid fa-mug-hot"></i> Cafeinablend</h1>
-                    <p style="color: #333; margin-bottom: 2rem;">Reporte de Inventario - <span id="report-date"></span></p>
+                    <p style="color: #333; margin-bottom: 2rem;">Reporte de Inventario - <span id="report-date"></span>
+                    </p>
                 </div>
                 <div class="report-table-wrapper">
                     <table class="report-table">
@@ -229,7 +259,8 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="report-summary" style="margin-top: 1.5rem; text-align: right; font-weight: bold; font-size: 1.2rem;">
+                <div class="report-summary"
+                    style="margin-top: 1.5rem; text-align: right; font-weight: bold; font-size: 1.2rem;">
                     Stock Global de Café: <span id="report-global-stock"></span> g
                 </div>
             </div>
@@ -251,17 +282,26 @@
             <div id="printable-sales-area">
                 <div class="report-header screen-hidden">
                     <h1 style="color: #000; margin-bottom:0.5rem;"><i class="fa-solid fa-mug-hot"></i> Cafeinablend</h1>
-                    <p style="color: #333; margin-bottom: 2rem;">Reporte de Ventas - <span id="sales-report-date"></span></p>
+                    <p style="color: #333; margin-bottom: 2rem;">Reporte de Ventas - <span
+                            id="sales-report-date"></span></p>
                 </div>
-                
+
                 <div class="sales-summary-cards print-cards" style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-                    <div style="flex: 1; background: rgba(212, 163, 115, 0.1); border: 1px solid var(--primary-color); padding: 1.5rem; border-radius: 8px; text-align: center;">
-                        <h3 class="print-text-black" style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 1rem; text-transform: uppercase;">Ventas de Hoy</h3>
-                        <div id="sales-today" class="print-text-black" style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">$0.00</div>
+                    <div
+                        style="flex: 1; background: rgba(212, 163, 115, 0.1); border: 1px solid var(--primary-color); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                        <h3 class="print-text-black"
+                            style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 1rem; text-transform: uppercase;">
+                            Ventas de Hoy</h3>
+                        <div id="sales-today" class="print-text-black"
+                            style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">$0.00</div>
                     </div>
-                    <div style="flex: 1; background: rgba(212, 163, 115, 0.1); border: 1px solid var(--primary-color); padding: 1.5rem; border-radius: 8px; text-align: center;">
-                        <h3 class="print-text-black" style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 1rem; text-transform: uppercase;">Ventas del Mes</h3>
-                        <div id="sales-month" class="print-text-black" style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">$0.00</div>
+                    <div
+                        style="flex: 1; background: rgba(212, 163, 115, 0.1); border: 1px solid var(--primary-color); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                        <h3 class="print-text-black"
+                            style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 1rem; text-transform: uppercase;">
+                            Ventas del Mes</h3>
+                        <div id="sales-month" class="print-text-black"
+                            style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">$0.00</div>
                     </div>
                 </div>
 
@@ -324,7 +364,8 @@
                     <label for="product-image-file">Imagen del Producto (Carpeta images)</label>
                     <input type="file" id="product-image-file" accept="image/*">
                     <input type="hidden" id="product-image">
-                    <div id="current-image-name" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);"></div>
+                    <div id="current-image-name"
+                        style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);"></div>
                     <small>Selecciona una imagen que ya hayas guardado en la carpeta "images".</small>
                 </div>
                 <div class="modal-actions">
@@ -372,4 +413,5 @@
         }
     </script>
 </body>
+
 </html>

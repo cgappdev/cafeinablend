@@ -1,10 +1,13 @@
-const CACHE_NAME = 'cafeinablend-v7';
+const CACHE_NAME = 'cafeinablend-v8';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
     './app.js',
-    './manifest.json'
+    './manifest.json',
+    './images/espresso.png',
+    './images/croissant.png',
+    './images/orange_juice.png'
 ];
 
 // Install Event
@@ -35,19 +38,36 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch Event - Network First Strategy
-// This ensures the latest Firebase logic and UI are loaded, falling back to cache if offline.
+// Fetch Event - Network First Strategy with Robust Cache Fallback
+// This ensures that the web app remains beautifully stylized and complete when offline.
 self.addEventListener('fetch', event => {
-    // Skip cross-origin requests (like Firebase SDKs from gstatic) to let them handle their own caching
-    if (!event.request.url.startsWith(self.location.origin)) {
+    // Only cache GET requests
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
+    const url = new URL(event.request.url);
+
+    // Identify assets that should be cached offline
+    const shouldCache = 
+        url.origin === self.location.origin || 
+        url.hostname.includes('fonts.googleapis.com') || 
+        url.hostname.includes('fonts.gstatic.com') || 
+        url.hostname.includes('cdnjs.cloudflare.com') ||
+        url.hostname.includes('ka-f.fontawesome.com') ||
+        event.request.destination === 'image' ||
+        event.request.destination === 'font';
+
+    if (!shouldCache) {
+        // Direct pass-through for Firebase Auth/Firestore and database network handshakes
         return;
     }
 
     event.respondWith(
         fetch(event.request)
             .then(response => {
-                // If network works, update cache and return
-                if (response && response.status === 200) {
+                // If network response is valid, cache it and return
+                if (response && (response.status === 200 || response.type === 'opaque')) {
                     const responseToCache = response.clone();
                     caches.open(CACHE_NAME).then(cache => {
                         cache.put(event.request, responseToCache);
@@ -56,7 +76,7 @@ self.addEventListener('fetch', event => {
                 return response;
             })
             .catch(() => {
-                // If network fails, serve from cache
+                // Fallback to cache on network failure
                 return caches.match(event.request);
             })
     );

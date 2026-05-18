@@ -53,8 +53,66 @@ let appState = {
     currentCategory: 'cafes',
     globalCoffeeStock: 1000,
     sales: [],
-    currentUserRole: null // 'admin' or 'user'
+    currentUserRole: null, // 'admin' or 'user'
+    tableFilter: 'all',    // current active table status filter ('all', 'free', 'occupied')
+    posSearchQuery: '',    // active search query in POS
+    adminSearchQuery: ''   // active search query in Admin
 };
+
+// --- Helper Functions for Connection & Warnings ---
+function updateConnectionStatus(isOnline) {
+    const statusEl = document.getElementById('connection-status');
+    if (!statusEl) return;
+    
+    if (isOnline) {
+        statusEl.className = 'connection-status online';
+        statusEl.querySelector('.status-text').textContent = 'En línea';
+        statusEl.title = 'Sincronizado con la nube';
+    } else {
+        statusEl.className = 'connection-status offline';
+        statusEl.querySelector('.status-text').textContent = 'Modo Local';
+        statusEl.title = 'Operando sin conexión. Datos guardados localmente.';
+    }
+}
+
+function loadLocalCacheFallback() {
+    try {
+        const cachedProducts = localStorage.getItem('cafeinablend_products');
+        const cachedTables = localStorage.getItem('cafeinablend_tables');
+        const cachedCoffeeStock = localStorage.getItem('cafeinablend_coffee_stock');
+        
+        if (cachedProducts && appState.products.length === 0) {
+            appState.products = JSON.parse(cachedProducts);
+            renderProducts();
+            renderAdminProducts();
+        }
+        if (cachedTables && appState.tables.length === 0) {
+            appState.tables = JSON.parse(cachedTables);
+            renderTables();
+        }
+        if (cachedCoffeeStock && appState.globalCoffeeStock === 1000) {
+            appState.globalCoffeeStock = parseInt(cachedCoffeeStock) || 1000;
+            const globalInput = document.getElementById('global-coffee-input');
+            if (globalInput) globalInput.value = appState.globalCoffeeStock;
+            checkCoffeeStockAlert();
+        }
+    } catch (err) {
+        console.warn("Failed to load local cache fallback:", err);
+    }
+}
+
+function checkCoffeeStockAlert() {
+    const alertEl = document.getElementById('low-coffee-alert');
+    const gramsSpan = document.getElementById('low-coffee-grams');
+    if (!alertEl) return;
+    
+    if (appState.globalCoffeeStock < 200) {
+        if (gramsSpan) gramsSpan.textContent = appState.globalCoffeeStock;
+        alertEl.classList.remove('hidden');
+    } else {
+        alertEl.classList.add('hidden');
+    }
+}
 
 // --- Initialize App ---
 function initApp() {
@@ -71,6 +129,19 @@ function initApp() {
         applyRoleRestrictions();
     }
 
+    // Monitor Online/Offline Status
+    updateConnectionStatus(navigator.onLine);
+    window.addEventListener('online', () => {
+        updateConnectionStatus(true);
+        syncPendingSales();
+    });
+    window.addEventListener('offline', () => {
+        updateConnectionStatus(false);
+    });
+    
+    // Try initial local cache load as fallback
+    loadLocalCacheFallback();
+
     // Start Syncing from Firebase
     syncData();
 }
@@ -86,12 +157,14 @@ function syncData() {
             });
         } else {
             appState.products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            localStorage.setItem('cafeinablend_products', JSON.stringify(appState.products));
             renderProducts();
             renderAdminProducts();
         }
     }, (error) => {
         console.error("Error syncing products:", error);
-        alert("Error de Firebase: No se pudieron cargar los productos. Revisa las reglas de seguridad.");
+        // Fallback to cache on error
+        loadLocalCacheFallback();
     });
 
     // 2. Sync Tables
@@ -110,6 +183,7 @@ function syncData() {
         } else {
             appState.tables = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             appState.tables.sort((a, b) => a.number - b.number);
+            localStorage.setItem('cafeinablend_tables', JSON.stringify(appState.tables));
             renderTables();
             if (appState.activeTable) renderCart();
         }
@@ -121,8 +195,10 @@ function syncData() {
     onSnapshot(doc(db, "config", "inventory"), (doc) => {
         if (doc.exists()) {
             appState.globalCoffeeStock = doc.data().globalCoffeeStock || 0;
+            localStorage.setItem('cafeinablend_coffee_stock', appState.globalCoffeeStock);
             const globalInput = document.getElementById('global-coffee-input');
             if (globalInput) globalInput.value = appState.globalCoffeeStock;
+            checkCoffeeStockAlert();
         } else {
             setDoc(doc.ref, { globalCoffeeStock: 1000 });
         }
@@ -132,6 +208,7 @@ function syncData() {
     const qSales = query(collection(db, "sales"), orderBy("date", "desc"), limit(100));
     onSnapshot(qSales, (snapshot) => {
         appState.sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        localStorage.setItem('cafeinablend_sales', JSON.stringify(appState.sales));
         // Update sales report if open
         if (!document.getElementById('sales-report-modal').classList.contains('hidden')) {
             showSalesReportModal();
@@ -182,6 +259,34 @@ async function addSaleToFirebase(sale) {
     }
 }
 
+function enqueuePendingSale(sale) {
+    try {
+        const pending = JSON.parse(localStorage.getItem('cafeinablend_pending_sales') || '[]');
+        pending.push(sale);
+        localStorage.setItem('cafeinablend_pending_sales', JSON.stringify(pending));
+    } catch (err) {
+        console.error("Failed to enqueue pending sale:", err);
+    }
+}
+
+async function syncPendingSales() {
+    try {
+        const pending = JSON.parse(localStorage.getItem('cafeinablend_pending_sales') || '[]');
+        if (pending.length === 0) return;
+        
+        console.log(`Syncing ${pending.length} pending sales...`);
+        
+        for (const sale of pending) {
+            await addSaleToFirebase(sale);
+        }
+        
+        localStorage.removeItem('cafeinablend_pending_sales');
+        console.log("All pending sales successfully synced to cloud!");
+    } catch (err) {
+        console.warn("Failed to sync pending sales:", err);
+    }
+}
+
 // --- UI Logic ---
 function showCustomConfirm(message, onConfirm) {
     const modal = document.getElementById('confirm-modal');
@@ -226,6 +331,14 @@ function switchView(viewId) {
         alert('Acceso restringido: Solo administradores.');
         return;
     }
+
+    // Reset search queries and inputs on screen change
+    appState.posSearchQuery = '';
+    appState.adminSearchQuery = '';
+    const posSearch = document.getElementById('pos-product-search');
+    const adminSearch = document.getElementById('admin-product-search');
+    if (posSearch) posSearch.value = '';
+    if (adminSearch) adminSearch.value = '';
 
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
@@ -302,7 +415,17 @@ function renderTables() {
     if (!container) return;
     container.innerHTML = '';
     
-    appState.tables.forEach(table => {
+    let displayTables = appState.tables;
+    if (appState.tableFilter !== 'all') {
+        displayTables = displayTables.filter(t => t.status === appState.tableFilter);
+    }
+    
+    if (displayTables.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-secondary); grid-column: 1/-1; text-align: center; padding: 2rem;">No hay mesas ${appState.tableFilter === 'free' ? 'libres' : 'ocupadas'} en este momento.</p>`;
+        return;
+    }
+    
+    displayTables.forEach(table => {
         const card = document.createElement('div');
         card.className = `table-card glass-effect ${table.status}`;
         card.innerHTML = `
@@ -338,10 +461,15 @@ function renderProducts() {
     if (!container) return;
     container.innerHTML = '';
     
-    const filteredProducts = appState.products.filter(p => p.category === appState.currentCategory);
+    let filteredProducts = appState.products.filter(p => p.category === appState.currentCategory);
+    
+    if (appState.posSearchQuery) {
+        const query = appState.posSearchQuery.toLowerCase().trim();
+        filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(query));
+    }
     
     if (filteredProducts.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-secondary); grid-column: 1/-1;">No hay productos en esta categoría.</p>';
+        container.innerHTML = '<p style="color:var(--text-secondary); grid-column: 1/-1;">No se encontraron productos.</p>';
         return;
     }
 
@@ -353,16 +481,28 @@ function renderProducts() {
                                     : `<div class="product-img">${getFallbackImage(product.category)}</div>`;
                                     
         let stockDisplay = '';
+        let alertBadge = '';
         if (product.category === 'cafes') {
             stockDisplay = `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.5rem;">(${product.grams || 0}g c/u)</span>`;
         } else {
-            stockDisplay = `<span style="font-size: 0.8rem; ${product.stock <= 0 ? 'color: #ff4757; font-weight: bold;' : 'color: var(--text-secondary);'} margin-left: 0.5rem;">Stock: ${product.stock !== undefined ? product.stock : 0}</span>`;
+            if (product.stock === undefined || product.stock <= 0) {
+                alertBadge = `<span class="stock-badge out">Agotado</span>`;
+                stockDisplay = `<span style="font-size: 0.8rem; color: #ff4757; font-weight: bold; margin-left: 0.5rem;">Stock: 0</span>`;
+            } else if (product.stock <= 5) {
+                alertBadge = `<span class="stock-badge low">¡Poco stock!</span>`;
+                stockDisplay = `<span style="font-size: 0.8rem; color: var(--primary-color); font-weight: bold; margin-left: 0.5rem;">Stock: ${product.stock}</span>`;
+            } else {
+                stockDisplay = `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.5rem;">Stock: ${product.stock}</span>`;
+            }
         }
 
         card.innerHTML = `
             ${imgHtml}
             <div class="product-info">
-                <div class="product-name">${product.name}</div>
+                <div class="product-name" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <span>${product.name}</span>
+                    ${alertBadge}
+                </div>
                 <div class="product-price">$${Number(product.price).toFixed(2)} ${stockDisplay}</div>
             </div>
         `;
@@ -394,21 +534,39 @@ function renderCart() {
         let imgHtml = item.product.image ? `<div style="width: 40px; height: 40px; border-radius: 8px; background-image: url('${item.product.image}'); background-size: cover; background-position: center; margin-right: 12px; flex-shrink: 0;"></div>` 
                                     : `<div style="width: 40px; height: 40px; border-radius: 8px; background-color: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; font-size: 1.2rem; color: rgba(255,255,255,0.5);">${getFallbackImage(item.product.category)}</div>`;
 
+        const hasNote = item.note && item.note.trim() !== '';
+        const noteDisplayHtml = hasNote 
+            ? `<div class="item-note-display" style="padding-left: 52px;"><i class="fa-regular fa-comment"></i> <span>"${item.note}"</span></div>`
+            : '';
+
         const div = document.createElement('div');
-        div.className = 'cart-item';
+        div.className = 'cart-item-container';
+        div.style.marginBottom = '1rem';
+        div.style.display = 'block';
         div.innerHTML = `
-            ${imgHtml}
-            <div class="cart-item-info">
-                <div class="cart-item-title">${item.product.name}</div>
-                <div class="cart-item-price">$${Number(item.product.price).toFixed(2)} c/u</div>
+            <div class="cart-item" style="border-bottom: none; padding-bottom: 0.25rem;">
+                ${imgHtml}
+                <div class="cart-item-info">
+                    <div class="cart-item-title">${item.product.name}</div>
+                    <div class="cart-item-price">$${Number(item.product.price).toFixed(2)} c/u</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 10px;">
+                    <button class="cart-item-note-btn ${hasNote ? 'has-note' : ''}" data-index="${index}" title="Nota especial" style="background:none; border:none; cursor:pointer;">
+                        <i class="fa-solid fa-note-sticky"></i>
+                    </button>
+                    <div class="cart-item-qty">
+                        <button class="qty-btn" data-action="decrease" data-index="${index}"><i class="fa-solid fa-minus"></i></button>
+                        <span style="min-width: 15px; text-align: center;">${item.quantity}</span>
+                        <button class="qty-btn" data-action="increase" data-index="${index}"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+                <div style="font-weight:600; width: 60px; text-align:right;">
+                    $${itemTotal.toFixed(2)}
+                </div>
             </div>
-            <div class="cart-item-qty" style="margin-right: 10px;">
-                <button class="qty-btn" data-action="decrease" data-index="${index}"><i class="fa-solid fa-minus"></i></button>
-                <span style="min-width: 15px; text-align: center;">${item.quantity}</span>
-                <button class="qty-btn" data-action="increase" data-index="${index}"><i class="fa-solid fa-plus"></i></button>
-            </div>
-            <div style="font-weight:600; width: 60px; text-align:right;">
-                $${itemTotal.toFixed(2)}
+            ${noteDisplayHtml}
+            <div class="note-input-wrapper hidden" id="note-wrapper-${index}" style="padding-left: 52px; margin-bottom: 0.5rem;">
+                <input type="text" class="item-note-input" placeholder="Ej: Sin azúcar, leche de coco..." value="${item.note || ''}" data-index="${index}">
             </div>
         `;
         
@@ -420,11 +578,46 @@ function renderCart() {
             });
         });
 
+        // Note Toggle button click
+        div.querySelector('.cart-item-note-btn').addEventListener('click', () => {
+            const wrapper = div.querySelector(`#note-wrapper-${index}`);
+            if (wrapper) {
+                wrapper.classList.toggle('hidden');
+                if (!wrapper.classList.contains('hidden')) {
+                    wrapper.querySelector('input').focus();
+                }
+            }
+        });
+
+        // Note Input Blur or Enter to Save
+        const noteInput = div.querySelector('.item-note-input');
+        if (noteInput) {
+            const saveNote = () => {
+                const val = noteInput.value.trim();
+                updateCartItemNote(index, val);
+            };
+            noteInput.addEventListener('blur', saveNote);
+            noteInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveNote();
+                }
+            });
+        }
+
         container.appendChild(div);
     });
 
     document.getElementById('cart-subtotal').textContent = `$${total.toFixed(2)}`;
     document.getElementById('cart-total').textContent = `$${total.toFixed(2)}`;
+}
+
+function updateCartItemNote(index, noteText) {
+    const table = appState.tables.find(t => t.id === appState.activeTable);
+    if (!table) return;
+    
+    if (!table.order[index]) return;
+    table.order[index].note = noteText;
+    updateTableInFirebase(table);
 }
 
 function renderAdminProducts() {
@@ -439,6 +632,11 @@ function renderAdminProducts() {
         displayProducts = displayProducts.filter(p => p.category === filter);
     }
     
+    if (appState.adminSearchQuery) {
+        const query = appState.adminSearchQuery.toLowerCase().trim();
+        displayProducts = displayProducts.filter(p => p.name.toLowerCase().includes(query));
+    }
+    
     displayProducts.forEach(product => {
         const catName = DEFAULT_CATEGORIES.find(c => c.id === product.category)?.name || product.category;
         const tr = document.createElement('tr');
@@ -446,12 +644,25 @@ function renderAdminProducts() {
         let imgHtml = product.image ? `<div class="img-thumb" style="background-image: url('${product.image}')"></div>` 
                                     : `<div class="img-thumb">${getFallbackImage(product.category)}</div>`;
                                     
+        let stockDisplay = '';
+        if (product.category === 'cafes') {
+            stockDisplay = product.grams !== undefined ? product.grams + 'g/u' : '0g/u';
+        } else {
+            if (product.stock === undefined || product.stock <= 0) {
+                stockDisplay = `<span style="color:#e63946; font-weight:bold;"><i class="fa-solid fa-circle-xmark"></i> Agotado (0)</span>`;
+            } else if (product.stock <= 5) {
+                stockDisplay = `<span style="color:var(--primary-color); font-weight:bold;"><i class="fa-solid fa-triangle-exclamation"></i> Bajo (${product.stock})</span>`;
+            } else {
+                stockDisplay = product.stock;
+            }
+        }
+                                    
         tr.innerHTML = `
             <td>${imgHtml}</td>
             <td style="font-weight:600;">${product.name}</td>
             <td><span style="background:rgba(255,255,255,0.1); padding:0.25rem 0.5rem; border-radius:12px; font-size:0.8rem;">${catName}</span></td>
             <td>$${Number(product.price).toFixed(2)}</td>
-            <td>${product.category === 'cafes' ? (product.grams !== undefined ? product.grams + 'g/u' : '0g/u') : (product.stock !== undefined ? product.stock : 0)}</td>
+            <td>${stockDisplay}</td>
             <td>
                 <div class="action-btns">
                     <button class="action-btn edit-btn" data-id="${product.id}"><i class="fa-solid fa-pen"></i></button>
@@ -597,10 +808,10 @@ async function payTable() {
             saveGlobalStockToFirebase(newCoffeeStock);
         }
         
-        // Record Sale
+        // Record Sale (with notes appended to item names for backward compatibility)
         const totalAmount = table.order.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
         const saleItems = table.order.map(item => ({
-            name: item.product.name,
+            name: item.product.name + (item.note ? ` (${item.note})` : ''),
             quantity: item.quantity,
             price: item.product.price
         }));
@@ -613,17 +824,34 @@ async function payTable() {
         };
         
         try {
-            await addSaleToFirebase(newSale);
+            if (navigator.onLine) {
+                await addSaleToFirebase(newSale);
+            } else {
+                enqueuePendingSale(newSale);
+            }
             
             // Clear Table
             table.order = [];
             table.status = 'free';
             updateTableInFirebase(table);
             
-            alert('¡Cobro registrado con éxito en la nube!');
+            if (navigator.onLine) {
+                alert('¡Cobro registrado con éxito en la nube!');
+            } else {
+                alert('¡Cobro registrado en Modo Local! Se sincronizará automáticamente cuando vuelva la conexión.');
+            }
             switchView('pos-view');
         } catch (error) {
-            alert('Error crítico: No se pudo registrar la venta. Por favor, verifica tu conexión a internet.');
+            console.warn("Failed to upload sale to Firebase, enqueuing locally:", error);
+            enqueuePendingSale(newSale);
+            
+            // Clear Table
+            table.order = [];
+            table.status = 'free';
+            updateTableInFirebase(table);
+            
+            alert('¡Cobro guardado localmente debido a una inestabilidad de red! Se sincronizará automáticamente al reconectar.');
+            switchView('pos-view');
         }
     });
 }
@@ -792,6 +1020,34 @@ function setupEventListeners() {
     document.getElementById('back-to-tables').addEventListener('click', () => switchView('pos-view'));
     document.getElementById('clear-table-btn').addEventListener('click', clearTable);
     document.getElementById('pay-btn').addEventListener('click', payTable);
+
+    // Tables Filter Buttons
+    document.querySelectorAll('.table-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.table-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            appState.tableFilter = btn.dataset.filter;
+            renderTables();
+        });
+    });
+
+    // POS Product Search Bar
+    const posSearchInput = document.getElementById('pos-product-search');
+    if (posSearchInput) {
+        posSearchInput.addEventListener('input', (e) => {
+            appState.posSearchQuery = e.target.value;
+            renderProducts();
+        });
+    }
+
+    // Admin Product Search Bar
+    const adminSearchInput = document.getElementById('admin-product-search');
+    if (adminSearchInput) {
+        adminSearchInput.addEventListener('input', (e) => {
+            appState.adminSearchQuery = e.target.value;
+            renderAdminProducts();
+        });
+    }
 
     document.getElementById('admin-category-filter').addEventListener('change', renderAdminProducts);
     
