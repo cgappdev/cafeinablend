@@ -178,6 +178,7 @@ async function addSaleToFirebase(sale) {
         await addDoc(collection(db, "sales"), sale);
     } catch (e) {
         console.error("Error recording sale:", e);
+        throw e;
     }
 }
 
@@ -576,7 +577,7 @@ async function payTable() {
         return;
     }
     
-    showCustomConfirm(`¿Cobrar la Mesa ${table.number}?`, () => {
+    showCustomConfirm(`¿Cobrar la Mesa ${table.number}?`, async () => {
         // Prepare Stock Updates
         let newCoffeeStock = appState.globalCoffeeStock;
         
@@ -611,15 +612,19 @@ async function payTable() {
             tableNumber: table.number
         };
         
-        addSaleToFirebase(newSale);
-        
-        // Clear Table
-        table.order = [];
-        table.status = 'free';
-        updateTableInFirebase(table);
-        
-        alert('¡Cobro realizado con éxito!');
-        switchView('pos-view');
+        try {
+            await addSaleToFirebase(newSale);
+            
+            // Clear Table
+            table.order = [];
+            table.status = 'free';
+            updateTableInFirebase(table);
+            
+            alert('¡Cobro registrado con éxito en la nube!');
+            switchView('pos-view');
+        } catch (error) {
+            alert('Error crítico: No se pudo registrar la venta. Por favor, verifica tu conexión a internet.');
+        }
     });
 }
 
