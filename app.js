@@ -59,6 +59,7 @@ let appState = {
 // --- Initialize App ---
 function initApp() {
     setupEventListeners();
+    renderCategories();
     updateClock();
     setInterval(updateClock, 1000);
     
